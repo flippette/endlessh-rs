@@ -84,7 +84,7 @@ async fn handler(
         }
 
         conn.write_all(&*buf.read().await).await?;
-        info!("{} {addr}", "send".green());
+        info!("{} {addr}", "ping".green());
         time::sleep(KEEPALIVE_INTERVAL).await;
     }
 }

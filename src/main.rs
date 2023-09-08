@@ -1,3 +1,4 @@
+use clap::Parser;
 use eyre::Result;
 use owo_colors::OwoColorize;
 use rand::{distributions::Uniform, Rng};
@@ -26,11 +27,10 @@ async fn main() -> Result<()> {
         .with_target(false)
         .init();
 
-    let socket = TcpListener::bind(SocketAddr::new(
-        rt_env!("ADDR", IpAddr::from([127, 0, 0, 1])),
-        rt_env!("PORT", 22),
-    ))
-    .await?;
+    let args = Args::parse();
+
+    let socket =
+        TcpListener::bind(SocketAddr::new(args.addr, args.port)).await?;
 
     let buf = {
         let mut tmp = [0u8; 256];
@@ -47,6 +47,8 @@ async fn main() -> Result<()> {
 
     task::spawn(randomizer(Arc::clone(&buf)));
 
+    info!("now listening on {}", socket.local_addr()?);
+
     loop {
         select! {
             Ok((conn, addr)) = socket.accept() => {
@@ -58,6 +60,16 @@ async fn main() -> Result<()> {
             }
         }
     }
+}
+
+#[derive(Debug, Parser)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    #[arg(short, long, default_value_t = 22)]
+    port: u16,
+
+    #[arg(short, long, default_value = "127.0.0.1")]
+    addr: IpAddr,
 }
 
 async fn handler(
@@ -93,23 +105,14 @@ async fn randomizer(buf: Arc<RwLock<[u8; 256]>>) {
     let distr = Uniform::new_inclusive(32, 127);
 
     loop {
-        let mut buf = buf.write().await;
-        buf[0] = b'x';
-        buf[1..254]
-            .iter_mut()
-            .for_each(|ch| *ch = rand::thread_rng().sample(distr));
-        drop(buf); // unlock buf as soon as possible
+        {
+            let mut buf = buf.write().await;
+            buf[0] = b'x';
+            buf[1..254]
+                .iter_mut()
+                .for_each(|ch| *ch = rand::thread_rng().sample(distr));
+        }
+
         time::sleep(KEEPALIVE_INTERVAL).await;
     }
-}
-
-#[macro_export]
-macro_rules! rt_env {
-    ($var:expr, $dflt:expr) => {
-        ::std::env::var($var)
-            .ok()
-            .as_deref()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or($dflt)
-    };
 }

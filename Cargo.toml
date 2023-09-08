@@ -6,10 +6,11 @@ authors = ["flippette <quangdatle2006@outlook.com>"]
 license = "Unlicense"
 
 [dependencies]
+clap = { version = "4.4", features = ["derive"] }
 color-eyre = "0.6"
 eyre = "0.6"
 owo-colors = "3.5"
 rand = "0.8"
-tokio = { version = "1.31", features = ["full"] }
+tokio = { version = "1.32", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"

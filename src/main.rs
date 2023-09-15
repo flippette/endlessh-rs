@@ -12,7 +12,7 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::{TcpListener, TcpStream},
     select, signal,
-    sync::{oneshot, RwLock},
+    sync::{Notify, RwLock},
     task, time,
 };
 use tracing::info;
@@ -39,10 +39,11 @@ async fn main() -> Result<()> {
         Arc::new(RwLock::new(tmp))
     };
 
-    let (tx, mut rx) = oneshot::channel();
+    let noti = Arc::new(Notify::new());
+    let noti2 = Arc::clone(&noti);
     task::spawn(async move {
         signal::ctrl_c().await.unwrap();
-        tx.send(()).unwrap();
+        noti2.notify_one();
     });
 
     task::spawn(randomizer(Arc::clone(&buf)));
@@ -55,7 +56,7 @@ async fn main() -> Result<()> {
                 task::spawn(handler(conn, addr, Arc::clone(&buf)));
             }
 
-            Ok(()) = &mut rx => {
+            () = noti.notified() => {
                 process::exit(0);
             }
         }

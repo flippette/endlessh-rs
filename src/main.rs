@@ -25,12 +25,12 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .compact()
         .with_target(false)
+        .without_time()
         .init();
 
     let args = Args::parse();
 
-    let socket =
-        TcpListener::bind(SocketAddr::new(args.addr, args.port)).await?;
+    let socket = TcpListener::bind(SocketAddr::new(args.addr, args.port)).await?;
 
     let buf = {
         let mut tmp = [0u8; 256];
@@ -72,11 +72,7 @@ struct Args {
     addr: IpAddr,
 }
 
-async fn handler(
-    conn: TcpStream,
-    addr: SocketAddr,
-    buf: Arc<RwLock<[u8; 256]>>,
-) -> Result<()> {
+async fn handler(conn: TcpStream, addr: SocketAddr, buf: Arc<RwLock<[u8; 256]>>) -> Result<()> {
     let (mut conn, client_version) = {
         let mut tmp = String::new();
         let mut reader = BufReader::new(conn);
@@ -85,18 +81,18 @@ async fn handler(
     };
     info!(
         "{} {addr} {}",
-        "conn".yellow(),
-        client_version.trim_end().blue()
+        "conn".yellow().bold(),
+        client_version.trim_end().blue().italic(),
     );
 
     loop {
         if let Ok(0) = conn.try_read(&mut [0]) {
-            info!("{} {}", "drop".red(), addr.strikethrough());
+            info!("{} {}", "drop".red().bold(), addr.strikethrough());
             return Ok(());
         }
 
         conn.write_all(&*buf.read().await).await?;
-        info!("{} {addr}", "ping".green());
+        info!("{} {addr}", "ping".green().bold());
         time::sleep(KEEPALIVE_INTERVAL).await;
     }
 }
